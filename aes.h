@@ -17,19 +17,20 @@ void SubBytes (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 void ShiftRows (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 void MixColumns (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 uint8_t GF(uint8_t a, uint8_t b);
+
 void KeyGen (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t master_key [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 
 // fill the first column of a given round key
-void ColumnFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ] , int round );
+void ColumnFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ] , int round);
 
 // fill the other 3 columns of a given round key
-void OtherColumnsFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round );
+void OtherColumnsFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
 void GetRoundKey (uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
 void MessageToState (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t message [ DATA_SIZE ]);
 void StateToMessage (uint8_t message [ DATA_SIZE ], uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 void MCMatrixColumnProduct (uint8_t colonne [ STATE_COL_SIZE ]);
 
-uint8_t gmul (uint8_t a,uint8_t b);
+uint8_t gmul (uint8_t a, uint8_t b);
 extern const uint8_t rcon [10];
 extern const uint8_t sboxtab [256];
 extern const uint8_t invsbox [256];
@@ -41,14 +42,16 @@ void AESEncrypt (uint8_t ciphertext [ DATA_SIZE ], uint8_t plaintext [ DATA_SIZE
     ciphertext = plaintext;
     uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ];
     uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ];
+    uint8_t master_key [ STATE_ROW_SIZE ][ STATE_COL_SIZE ];
     int flag = 0;
 
-    printf("\nInput: ");
+    printf("\ninput: ");
 
     for(int i=0; i<STATE_ROW_SIZE; i++){
         for(int j=0; j<STATE_COL_SIZE; j++){
             state[i][j] = ciphertext[flag];
             roundkey[i][j] = key[flag];
+            master_key[i][j] = key[flag];
 
             flag++;
             printf("%x ", state[i][j]);
@@ -57,14 +60,30 @@ void AESEncrypt (uint8_t ciphertext [ DATA_SIZE ], uint8_t plaintext [ DATA_SIZE
 
     AddRoundKey(state, roundkey);
 
+    for(int i=0; i<targeted_round; i++){
+        SubBytes(state);
+        ShiftRows(state);
+        MixColumns(state);
+        KeyGen(roundkey, master_key);
+        AddRoundKey(state, roundkey);
+    }
+
     SubBytes(state);
     ShiftRows(state);
     MixColumns(state);
+
+    printf("\noutput: ");
+
+    for(int i=0; i<STATE_ROW_SIZE; i++){
+        for(int j=0; j<STATE_COL_SIZE; j++){
+            printf("%x ", state[i][j]);
+        }
+    }
 }
 
 void AddRoundKey (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ])
 {
-    printf("\nStart: ");
+    printf("\nstart: ");
 
     for(int i=0; i<STATE_ROW_SIZE; i++){
         for(int j=0; j<STATE_COL_SIZE; j++){
@@ -155,6 +174,12 @@ uint8_t GF(uint8_t a, uint8_t b)
         b >>= 1;
     }
     return p;
+}
+
+void KeyGen (uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t master_key [ STATE_ROW_SIZE ][ STATE_COL_SIZE ])
+{
+    //Por hacer
+
 }
 
 #endif
