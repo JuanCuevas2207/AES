@@ -21,11 +21,13 @@ uint8_t GF(uint8_t a, uint8_t b);
 void KeyGen (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t master_key [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 
 // fill the first column of a given round key
-void ColumnFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ] , int round);
+void ColumnFill (uint8_t roundkeys [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
 
 // fill the other 3 columns of a given round key
-void OtherColumnsFill (uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
-void GetRoundKey (uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t roundkeys [][ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
+void OtherColumnsFill (uint8_t roundkeys [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
+
+void GetRoundKey (uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t roundkeys [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round);
+
 void MessageToState (uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t message [ DATA_SIZE ]);
 void StateToMessage (uint8_t message [ DATA_SIZE ], uint8_t state [ STATE_ROW_SIZE ][ STATE_COL_SIZE ]);
 void MCMatrixColumnProduct (uint8_t colonne [ STATE_COL_SIZE ]);
@@ -35,7 +37,7 @@ extern const uint8_t rcon [10];
 extern const uint8_t sboxtab [256];
 extern const uint8_t invsbox [256];
 
-extern const uint8_t pred_matrix [DATA_SIZE];
+extern const uint8_t pred_matrix [16];
 
 void AESEncrypt (uint8_t ciphertext [ DATA_SIZE ], uint8_t plaintext [ DATA_SIZE ] , uint8_t key [ DATA_SIZE ])
 {
@@ -60,17 +62,26 @@ void AESEncrypt (uint8_t ciphertext [ DATA_SIZE ], uint8_t plaintext [ DATA_SIZE
 
     AddRoundKey(state, roundkey);
 
-    for(int i=0; i<targeted_round; i++){
+    int i;
+
+    for(i=0; i<targeted_round-1; i++){
         SubBytes(state);
         ShiftRows(state);
         MixColumns(state);
-        KeyGen(roundkey, master_key);
+
+        ColumnFill(roundkey, i);
+        OtherColumnsFill(roundkey, i);
+
         AddRoundKey(state, roundkey);
     }
 
     SubBytes(state);
     ShiftRows(state);
-    MixColumns(state);
+
+    ColumnFill(roundkey, i);
+    OtherColumnsFill(roundkey, i);
+
+    AddRoundKey(state, roundkey);
 
     printf("\noutput: ");
 
@@ -176,10 +187,61 @@ uint8_t GF(uint8_t a, uint8_t b)
     return p;
 }
 
-void KeyGen (uint8_t roundkey [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], uint8_t master_key [ STATE_ROW_SIZE ][ STATE_COL_SIZE ])
+void ColumnFill (uint8_t roundkeys [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round)
 {
-    //Por hacer
+    uint8_t temp;
+    uint8_t temps[4];
 
+    for (int k=0; k<STATE_ROW_SIZE; k++){
+        temps[k] = roundkeys[3][k];
+    }
+
+    temp = temps[0];
+    for (int k=0; k<3; k++){
+        temps[k] = temps[k+1];
+    }
+    temps[3] = temp;
+
+    for (int k=0; k<STATE_ROW_SIZE; k++) {
+        temps[k] = sboxtab[temps[k]];
+    }
+    
+    temps[0] ^= rcon[round];
+
+    for (int k=0; k<STATE_ROW_SIZE; k++) {
+        temps[k] ^= roundkeys[0][k];
+    }
+
+    for (int k=0; k<STATE_ROW_SIZE; k++) {
+        roundkeys[0][k] = temps[k];
+    }    
+}
+
+void OtherColumnsFill (uint8_t roundkeys [ STATE_ROW_SIZE ][ STATE_COL_SIZE ], int round)
+{
+    uint8_t temps[4];
+
+    for(int i=1; i<=3; i++){
+        for (int k=0; k<STATE_ROW_SIZE; k++){
+            temps[k] = roundkeys[i][k];
+        }
+
+        for (int k=0; k<STATE_ROW_SIZE; k++){
+            temps[k] ^= roundkeys[i-1][k];
+        }
+
+        for (int k=0; k<STATE_ROW_SIZE; k++){
+            roundkeys[i][k] = temps[k];
+        }
+    }
+
+    printf("\nk_sch: ");
+
+    for(int i=0; i<STATE_ROW_SIZE; i++){
+        for(int j=0; j<STATE_COL_SIZE; j++){
+            printf("%x ", roundkeys[i][j]);
+        }
+    }
 }
 
 #endif
